@@ -35,20 +35,20 @@ int64_t ziconv_utf16_to_int8_convert(
     size_t output_length,
     uint8_t * restrict replacement,
     const char * restrict high_map,
-    const char * restrict low_map
+    const char * restrict low_map,
+    size_t * restrict out_idx
 ){
 /* AIBLOCK 'convert' */
-    size_t out_idx = 0;  
     
     for (int i = 0; i < input_length; i++) {
-        if (out_idx >= output_length) {
+        if ((*out_idx) >= output_length) {
             return ZICONV_ERR_OVERFLOW;
         }
         
         uint8_t result = process_data(input[i], high_map, low_map);
         
         if (result != 0) {
-            output[out_idx++] = result;
+            output[(*out_idx)++] = result;
         } else {
             if (replacement == NULL) {
                 return ZICONV_ERR_INVALID;
@@ -56,15 +56,15 @@ int64_t ziconv_utf16_to_int8_convert(
             
             size_t repl_len = strlen((char*)replacement);
             
-            if (out_idx + repl_len > output_length) {
+            if ((*out_idx) + repl_len > output_length) {
                 return ZICONV_ERR_OVERFLOW;
             }
             
-            memcpy(output + out_idx, replacement, repl_len);
-            out_idx += repl_len;
+            memcpy(output + (*out_idx), replacement, repl_len);
+            (*out_idx) += repl_len;
         }
     }
     
-    return out_idx;
+    return ZICONV_OK;
 /* ENDAIBLOCK */
 }

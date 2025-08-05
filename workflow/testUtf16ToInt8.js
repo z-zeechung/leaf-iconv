@@ -2,6 +2,7 @@
 const { spawnSync, execFileSync, execSync } = require('child_process')
 const fs = require('fs')
 const path = require('path')
+const util = require('util')
 
 /**
  * 
@@ -31,6 +32,8 @@ function test(payload){
         #include <wctomb/${payload.encoding}.h>
         #include <stdlib.h>
         #include "ziconv.h"
+        #include <io.h>
+        #include <fcntl.h>
 
         int64_t ziconv_utf16_to_int8_convert(
             uint16_t * restrict input,
@@ -39,10 +42,14 @@ function test(payload){
             size_t output_length,
             uint8_t * restrict replacement,
             const char * restrict high_map,
-            const char * restrict low_map
+            const char * restrict low_map,
+            size_t * restrict out_idx
         );
 
         int main(){
+
+            // prevent \\n from being converted to \\r\\n
+            _setmode(_fileno(stdout), _O_BINARY);
 
             uint16_t input[] = {${input.map(x=>`${x}`).join(',')}};
             uint8_t output[${payload.outputBufferLength}+1];
@@ -55,17 +62,20 @@ function test(payload){
                 uint8_t replacement[] = {${payload.replacement.map(x=>`${x},`).join('')} 0};
             `:''}
 
-            int64_t length = ziconv_utf16_to_int8_convert(
+            size_t out_idx = 0;
+
+            int64_t status = ziconv_utf16_to_int8_convert(
                 input, output,
                 sizeof(input)/sizeof(uint16_t),
                 ${payload.outputBufferLength},
                 ${payload.replacement?`replacement`:'NULL'},
                 ${encodingCName}_wctomb_high,
-                ${encodingCName}_wctomb_low
+                ${encodingCName}_wctomb_low,
+                &out_idx
             );
 
-            if(length < 0){
-                switch(length){
+            if(status < 0){
+                switch(status){
                     case ZICONV_ERR_OVERFLOW:
                         printf("The output buffer is too small.\\n");
                         break;
@@ -75,10 +85,10 @@ function test(payload){
                     default:
                         printf("Unknown error.\\n");
                 }
-                return length;
+                return status;
             }
 
-            output[length] = 0;
+            output[out_idx] = 0;
 
             printf("%s", output);
 
@@ -96,7 +106,9 @@ function test(payload){
 
     fs.writeFileSync(`test/test.c`, code)
 
-    const CC = "D:/Program Files/mingw64/bin/gcc.exe"
+    const env = util.parseEnv(fs.readFileSync('.env', 'utf-8'))
+
+    const CC = env.CC || 'gcc'
     
     let output
     try{
@@ -130,7 +142,10 @@ function test(payload){
 
     return {
         result: success?[...Buffer.from(encodeResult, 'hex')]:undefined,
-        log: [output, Buffer.from(encodeResult??'', 'hex').toString('latin1')].join('\n')
+        log: {
+            compile: output, 
+            result: Buffer.from(encodeResult??'', 'hex').toString('latin1')
+        }
     }
 }
 

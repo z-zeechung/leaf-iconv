@@ -13,7 +13,7 @@ function utf16ToInt8(name){
         if(char.length !== 2){
             throw new Error('char length is not 2:' + char)
         }
-        if(type === '3'){
+        if(type === '3' || type === '2' || type === '1'){
             continue
         }
 
