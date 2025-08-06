@@ -14,7 +14,7 @@ const util = require('util')
  * }} payload 
  */
 function test(payload){
-    let validEncodings = require('../encodings.json').wctomb.utf16ToInt8
+    let validEncodings = require('../../encodings.json').wctomb.utf16ToInt8
     if (!validEncodings.includes(payload.encoding)){
         throw new Error(`Invalid encoding: ${payload.encoding}`)
     }

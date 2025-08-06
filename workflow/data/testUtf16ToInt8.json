@@ -1,0 +1,72 @@
+{
+    "tester": "testUtf16ToInt8",
+    "oracles": {
+        "icu": {
+            "tester": "testUconv"
+        }
+    },
+    "anchor": [
+        {
+            "input": "Δοκιμή μετατροπής ICU",
+            "replacement": [
+                127
+            ],
+            "encoding": "ibm-1253_P100-1995",
+            "outputBufferLength": 84
+        },
+        {
+            "input": "שלום",
+            "replacement": [],
+            "encoding": "ibm-862_P100-1995",
+            "outputBufferLength": 16
+        },
+        {
+            "input": "Γειά σου",
+            "replacement": [],
+            "encoding": "ibm-860_P100-1995",
+            "outputBufferLength": 32
+        },
+        {
+            "input": "Prueba de conversión ICU",
+            "replacement": null,
+            "encoding": "ibm-860_P100-1995",
+            "outputBufferLength": 96
+        },
+        {
+            "input": "اختبار تحويل ICU",
+            "replacement": [],
+            "encoding": "ibm-16804_X110-1999",
+            "outputBufferLength": 64
+        },
+        {
+            "input": "ICU转换测试",
+            "replacement": [],
+            "encoding": "ibm-1162_P100-1999",
+            "outputBufferLength": 28
+        },
+        {
+            "input": "Prüfung der ICU-Konvertierung",
+            "replacement": null,
+            "encoding": "ibm-852_P100-1995",
+            "outputBufferLength": 116
+        },
+        {
+            "input": "ICU konvertálás tesztelése",
+            "replacement": [],
+            "encoding": "ibm-1123_P100-1995",
+            "outputBufferLength": 104
+        },
+        {
+            "input": "Проверка преобразования ICU",
+            "replacement": null,
+            "encoding": "ibm-855_P100-1995",
+            "outputBufferLength": 108
+        },
+        {
+            "input": "Hello, world!",
+            "replacement": [],
+            "encoding": "ibm-1146_P100-1997",
+            "outputBufferLength": 52
+        }
+    ]
+}
