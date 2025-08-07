@@ -10,7 +10,7 @@
    and this fucntion bracket prevents it from including 
    headers. */
 static void _marco_definitions(){
-/* AIBLOCK 'marco' */
+/* AIBLOCK marco */
 
 /* ENDAIBLOCK */
 }
@@ -20,7 +20,7 @@ static inline uint8_t process_data(
     const char * restrict high_map,
     const char * restrict low_map
 ){
-/* AIBLOCK 'process data' */
+/* AIBLOCK process */
     uint8_t high = high_map[input >> 8];
     input = 0x00ff & input;
     input = input | (high << 8);
@@ -38,7 +38,7 @@ int64_t ziconv_utf16_to_int8_convert(
     const char * restrict low_map,
     size_t * restrict out_idx
 ){
-/* AIBLOCK 'convert' */
+/* AIBLOCK convert */
     
     for (int i = 0; i < input_length; i++) {
         if ((*out_idx) >= output_length) {
