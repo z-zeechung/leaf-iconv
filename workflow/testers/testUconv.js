@@ -33,10 +33,8 @@ function test(payload){
     if(payload.replacement){
         if(payload.replacement.length === 0){
             replacement = 'skip'
-        }else if(payload.replacement.length === 1 && payload.replacement[0] === 0x7f){
-            replacement = 'substitute'
         }else{
-            throw new Error('unsupported replacement')
+            replacement = 'substitute'
         }
     }
 
@@ -76,3 +74,10 @@ function test(payload){
 }
 
 module.exports = test
+
+// console.log(test({
+//   input: 'ＴＨＥ　ＱＵＩＣＫ　ＢＲＯＷＮ　ＦＯＸ　ＪＵＭＰＳ　ＯＶＥＲ　ＴＨＥ　ＬＡＺＹ　ＤＯＧ．',
+//   replacement: [ 0x7f ],
+//   encoding: 'ibm-9447_P100-2002',
+//   outputBufferLength: 8
+// }))

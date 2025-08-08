@@ -15,6 +15,8 @@ async function attack(){
 
     let system = {role: 'user', content: GENERAL_PROMPT(getFileContent())}
 
+    let encodings = JSON.parse(fs.readFileSync('encodings.json', 'utf-8'))
+
     for(let i=0;i < MAX_TRAILS;i++){
         let analyze = await reasoning([system, ...history])
         history.push({role: 'assistant', content: analyze})
@@ -27,10 +29,10 @@ async function attack(){
         console.log(testResult)
 
         if(testResult.status === 'positive'){
-            switch(testCase.replacement){
-                case 'skip': testCase.replacement = []; return;
-                case 'fill': testCase.replacement = [0x7f]; return;
-                default: testCase.replacement = undefined
+            switch(testResult.testCase.replacement){
+                case 'skip': testResult.testCase.replacement = []; break;
+                case 'fill': testResult.testCase.replacement = [encodings.subchar[testResult.testCase.encoding]]; return;
+                default: testResult.testCase.replacement = undefined
             }
             testResult.testCase['outputBufferLength'] = testResult.testCase.input.length*4
             console.log('\x1b[31mA POSITIVE TEST CASE DISCOVERED:', JSON.stringify(testResult, null, 2), '\x1b[0m')
@@ -44,10 +46,10 @@ async function attack(){
                 testResult = tryTestCase(testCase)
                 console.log(testResult)
                 if(testResult.status === 'positive'){
-                    switch(testCase.replacement){
-                        case 'skip': testCase.replacement = []; return;
-                        case 'fill': testCase.replacement = [0x7f]; return;
-                        default: testCase.replacement = undefined
+                    switch(testResult.testCase.replacement){
+                        case 'skip': testResult.testCase.replacement = []; break;
+                        case 'fill': testResult.testCase.replacement = [encodings.subchar[testResult.testCase.encoding]]; break;
+                        default: testResult.testCase.replacement = undefined
                     }
                     testResult.testCase['outputBufferLength'] = testResult.testCase.input.length*4
                     console.log('\x1b[31mA POSITIVE TEST CASE DISCOVERED:', JSON.stringify(testResult, null, 2), '\x1b[0m')
@@ -101,6 +103,10 @@ ${code}
 
 一旦你找到了*一个*阳性的测试用例，系统将会把测试用例交给迭代人员做
 进一步处理，你的工作到此结束。
+
+如果你在某个想法上连续尝试多次都依旧无法找到有效的测试用例，那就不
+要在这个问题上浪费时间，立即停止这么做，并重新审视代码，观察是否会
+存在其它问题。**注意把握探索深度与广度之间的平衡。**
 
 现在，请先*暂时不要*着急立即编写测试用例。请*首先*仔细审阅代码，分
 析其中所存在的上述问题，阐明其机制，并概述如何触发这种错误。
@@ -303,6 +309,8 @@ function tryTestCase(testCase){
         message: ''
     }
 
+    let encodings = JSON.parse(fs.readFileSync('encodings.json', 'utf-8'))
+
     if(typeof testCase.input !== 'string'){
         ret.status = 'format'
         ret.message = 'the `input` of test case is not a string.'
@@ -319,7 +327,7 @@ function tryTestCase(testCase){
         testCase['outputBufferLength'] = testCase.input.length * 4
         switch(testCase.replacement){
             case 'skip': testCase.replacement = []; break;
-            case 'fill': testCase.replacement = [0x7f]; break;
+            case 'fill': testCase.replacement = [encodings.subchar[testCase.encoding]]; break;
             default: testCase.replacement = undefined
         }
 

@@ -11,6 +11,11 @@
       "replacement": null,
       "encoding": "ibm-1123_P100-1995",
       "outputBufferLength": 4
+    },
+    {
+      "input": "\ud800",
+      "encoding": "ibm-1123_P100-1995",
+      "outputBufferLength": 4
     }
   ],
   "anchor": [

@@ -252,28 +252,21 @@ function addToTestCases(testCase){
 
 fix({
   "testCase": {
-    "input": "𐀀",
-    "replacement": "fill",
+    "input": "\ud800",
     "encoding": "ibm-1123_P100-1995",
-    "outputBufferLength": 8
+    "outputBufferLength": 4
   },
   "icu": {
-    "result": [
-      63
-    ],
+    "result": [],
     "log": {
       "conversion": "",
-      "result": "?"
+      "result": ""
     }
   },
   "ziconv": {
-    "result": [
-      127,
-      127
-    ],
     "log": {
       "compile": "",
-      "result": ""
+      "result": "The input string contains invalid characters.\n"
     }
   },
   "status": "positive",

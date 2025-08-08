@@ -55,18 +55,18 @@ int64_t ziconv_utf16_to_int8_convert(
         if (result != 0 || input[i] == 0) {
             output[(*out_idx)++] = result;
         } else {
-            if (replacement == NULL) {
-                return ZICONV_ERR_INVALID;
+            // Only process replacement if provided, otherwise skip invalid character
+            if (replacement != NULL) {
+                size_t repl_len = strlen((char*)replacement);
+                
+                if ((*out_idx) + repl_len > output_length) {
+                    return ZICONV_ERR_OVERFLOW;
+                }
+                
+                memcpy(output + (*out_idx), replacement, repl_len);
+                (*out_idx) += repl_len;
             }
-            
-            size_t repl_len = strlen((char*)replacement);
-            
-            if ((*out_idx) + repl_len > output_length) {
-                return ZICONV_ERR_OVERFLOW;
-            }
-            
-            memcpy(output + (*out_idx), replacement, repl_len);
-            (*out_idx) += repl_len;
+            // No error returned for invalid characters when replacement is NULL
         }
     }
     
