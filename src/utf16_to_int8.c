@@ -15,6 +15,9 @@ static void _marco_definitions(){
 /* ENDAIBLOCK */
 }
 
+// use a 2-level table to map utf16 to mb code
+// level 1: map high byte to offset
+// level 2: map low byte to mb code, this is a continuous array, sth. like static linked list
 static inline uint8_t process_data(
     uint16_t input, 
     const char * restrict high_map,
@@ -39,7 +42,6 @@ int64_t ziconv_utf16_to_int8_convert(
     size_t * restrict out_idx
 ){
 /* AIBLOCK convert */
-    
     for (int i = 0; i < input_length; i++) {
         if ((*out_idx) >= output_length) {
             return ZICONV_ERR_OVERFLOW;
@@ -47,7 +49,10 @@ int64_t ziconv_utf16_to_int8_convert(
         
         uint8_t result = process_data(input[i], high_map, low_map);
         
-        if (result != 0) {
+        // Accept:
+        // 1. Non-zero mapping results
+        // 2. U+0000 character (even if mapped to 0)
+        if (result != 0 || input[i] == 0) {
             output[(*out_idx)++] = result;
         } else {
             if (replacement == NULL) {

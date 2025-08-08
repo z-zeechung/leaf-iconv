@@ -90,7 +90,7 @@ function test(payload){
 
             output[out_idx] = 0;
 
-            printf("%s", output);
+            fwrite(output, 1, out_idx, stdout);
 
             return 0;
 

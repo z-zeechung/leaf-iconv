@@ -25,13 +25,14 @@ async function attack(){
         history.push({role: 'assistant', content: `\`\`\`json\n${JSON.stringify(testCase)}\n\`\`\``})
         let testResult = tryTestCase(testCase)
         console.log(testResult)
-        
+
         if(testResult.status === 'positive'){
             switch(testCase.replacement){
                 case 'skip': testCase.replacement = []; return;
                 case 'fill': testCase.replacement = [0x7f]; return;
                 default: testCase.replacement = undefined
             }
+            testResult.testCase['outputBufferLength'] = testResult.testCase.input.length*4
             console.log('\x1b[31mA POSITIVE TEST CASE DISCOVERED:', JSON.stringify(testResult, null, 2), '\x1b[0m')
             return testResult
         }else{
@@ -48,6 +49,7 @@ async function attack(){
                         case 'fill': testCase.replacement = [0x7f]; return;
                         default: testCase.replacement = undefined
                     }
+                    testResult.testCase['outputBufferLength'] = testResult.testCase.input.length*4
                     console.log('\x1b[31mA POSITIVE TEST CASE DISCOVERED:', JSON.stringify(testResult, null, 2), '\x1b[0m')
                     return testResult
                 }
@@ -257,6 +259,7 @@ const chain = model
       },
     ],
     function_call: { name: "output_formatter" },
+    response_format: { type: "json_object" }
   })
   .pipe(fixingParser);
 
@@ -313,10 +316,10 @@ function tryTestCase(testCase){
         ret.status = 'format'
         ret.message = 'the `replacement` of test case is not a valid option.'
     }else{
-        testCase['outputBufferLength'] = testCase.input.length * 8
+        testCase['outputBufferLength'] = testCase.input.length * 4
         switch(testCase.replacement){
-            case 'skip': testCase.replacement = []; return;
-            case 'fill': testCase.replacement = [0x7f]; return;
+            case 'skip': testCase.replacement = []; break;
+            case 'fill': testCase.replacement = [0x7f]; break;
             default: testCase.replacement = undefined
         }
 
@@ -342,7 +345,7 @@ function tryTestCase(testCase){
             }
         }
 
-        if(result1.result === result2.result === undefined || result1.result === result2.result === null){
+        if(!result1.result && !result2.result){
             ret.status = 'fail'
         }else if(arrcmp(result1.result, result2.result)){
             ret.status = 'success'
