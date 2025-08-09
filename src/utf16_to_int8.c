@@ -16,13 +16,11 @@ static void _marco_definitions(){
 }
 
 // use a 2-level table to map utf16 to mb code
-// level 1: map high byte to offset
-// level 2: map low byte to mb code, this is a continuous array, sth. like static linked list
 static inline uint8_t process_data(
     uint16_t input, 
-    const char * restrict high_map,
-    const char * restrict low_map
-){
+    const char * restrict high_map, // level 1: map high byte to offset
+    const char * restrict low_map   // level 2: map low byte to mb code, this is a continuous array, sth. like static linked list
+){                                  // this allow us to store mapping with less space
 /* AIBLOCK process */
     uint8_t high = high_map[input >> 8];
     input = 0x00ff & input;
@@ -36,40 +34,59 @@ int64_t ziconv_utf16_to_int8_convert(
     uint8_t * restrict output,
     size_t input_length,
     size_t output_length,
-    uint8_t * restrict replacement,
+    uint8_t * restrict replacement, // for icu compatibility, only zero-len str (icu `skip`) & single-len str (icu `fill`) are supported
     const char * restrict high_map,
     const char * restrict low_map,
     size_t * restrict out_idx
 ){
 /* AIBLOCK convert */
-    for (int i = 0; i < input_length; i++) {
-        if ((*out_idx) >= output_length) {
-            return ZICONV_ERR_OVERFLOW;
-        }
-        
-        uint8_t result = process_data(input[i], high_map, low_map);
-        
-        // Accept:
-        // 1. Non-zero mapping results
-        // 2. U+0000 character (even if mapped to 0)
-        if (result != 0 || input[i] == 0) {
-            output[(*out_idx)++] = result;
-        } else {
-            // Only process replacement if provided, otherwise skip invalid character
-            if (replacement != NULL) {
-                size_t repl_len = strlen((char*)replacement);
-                
-                if ((*out_idx) + repl_len > output_length) {
-                    return ZICONV_ERR_OVERFLOW;
+    size_t i = 0;
+    while (i < input_length) {
+        uint16_t code = input[i];
+
+        // Check for surrogate pairs
+        if (code >= 0xD800 && code <= 0xDBFF) {
+            // High surrogate found, check if next is low surrogate
+            if (i+1 < input_length && input[i+1] >= 0xDC00 && input[i+1] <= 0xDFFF) {
+                // Valid surrogate pair - treat as single invalid character
+                if (replacement != NULL) {
+                    size_t repl_len = strlen((char*)replacement);
+                    if ((*out_idx) + repl_len > output_length) {
+                        return ZICONV_ERR_OVERFLOW;
+                    }
+                    memcpy(output + (*out_idx), replacement, repl_len);
+                    (*out_idx) += repl_len;
                 }
-                
-                memcpy(output + (*out_idx), replacement, repl_len);
-                (*out_idx) += repl_len;
+                i += 2; // Skip both high and low surrogates
+                continue;
             }
-            // No error returned for invalid characters when replacement is NULL
+            // Fall through to invalid handling for unpaired high surrogate
+        } else if (code >= 0xDC00 && code <= 0xDFFF) {
+            // Unpaired low surrogate - fall through to invalid handling
         }
+
+        // Normal character processing
+        uint8_t result = process_data(code, high_map, low_map);
+        if (result != 0 || code == 0) {
+            if ((*out_idx) >= output_length) {
+                return ZICONV_ERR_OVERFLOW;
+            }
+            output[(*out_idx)++] = result;
+            i++;
+            continue;
+        }
+
+        // Invalid character handling
+        if (replacement != NULL) {
+            size_t repl_len = strlen((char*)replacement);
+            if ((*out_idx) + repl_len > output_length) {
+                return ZICONV_ERR_OVERFLOW;
+            }
+            memcpy(output + (*out_idx), replacement, repl_len);
+            (*out_idx) += repl_len;
+        }
+        i++;
     }
-    
     return ZICONV_OK;
 /* ENDAIBLOCK */
 }

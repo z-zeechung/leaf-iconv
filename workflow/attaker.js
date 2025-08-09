@@ -7,7 +7,7 @@ const CHARSETS = '欧洲语言'
 const ENCODINGS = ['wctomb', 'utf16ToInt8']
 const ORACLE = {name: 'icu', tester: require('./testers/testUconv.js')}
 const HIEREUS = {name: 'ziconv', tester: require('./testers/testUtf16ToInt8.js')}
-const CODES = ['src/utf16_to_int8.c', ['注：以下这个码表文件只用作示例，用于展示一般性的码表结构，实际调用时会定向为指定的码表'], 'wctomb/ibm-1123_P100-1995.h']
+const CODES = ['src/utf16_to_int8.c']
 
 async function attack(){
 
@@ -15,7 +15,7 @@ async function attack(){
 
     let system = {role: 'user', content: GENERAL_PROMPT(getFileContent())}
 
-    let encodings = JSON.parse(fs.readFileSync('encodings.json', 'utf-8'))
+    // let encodings = JSON.parse(fs.readFileSync('encodings.json', 'utf-8'))
 
     for(let i=0;i < MAX_TRAILS;i++){
         let analyze = await reasoning([system, ...history])
@@ -29,12 +29,12 @@ async function attack(){
         console.log(testResult)
 
         if(testResult.status === 'positive'){
-            switch(testResult.testCase.replacement){
-                case 'skip': testResult.testCase.replacement = []; break;
-                case 'fill': testResult.testCase.replacement = [encodings.subchar[testResult.testCase.encoding]]; return;
-                default: testResult.testCase.replacement = undefined
-            }
-            testResult.testCase['outputBufferLength'] = testResult.testCase.input.length*4
+            // switch(testResult.testCase.replacement){
+            //     case 'skip': testResult.testCase.replacement = []; break;
+            //     case 'fill': testResult.testCase.replacement = [encodings.subchar[testResult.testCase.encoding]]; return;
+            //     default: testResult.testCase.replacement = undefined
+            // }
+            // testResult.testCase['outputBufferLength'] = testResult.testCase.input.length*4
             console.log('\x1b[31mA POSITIVE TEST CASE DISCOVERED:', JSON.stringify(testResult, null, 2), '\x1b[0m')
             return testResult
         }else{
@@ -46,12 +46,12 @@ async function attack(){
                 testResult = tryTestCase(testCase)
                 console.log(testResult)
                 if(testResult.status === 'positive'){
-                    switch(testResult.testCase.replacement){
-                        case 'skip': testResult.testCase.replacement = []; break;
-                        case 'fill': testResult.testCase.replacement = [encodings.subchar[testResult.testCase.encoding]]; break;
-                        default: testResult.testCase.replacement = undefined
-                    }
-                    testResult.testCase['outputBufferLength'] = testResult.testCase.input.length*4
+                    // switch(testResult.testCase.replacement){
+                    //     case 'skip': testResult.testCase.replacement = []; break;
+                    //     case 'fill': testResult.testCase.replacement = [encodings.subchar[testResult.testCase.encoding]]; break;
+                    //     default: testResult.testCase.replacement = undefined
+                    // }
+                    // testResult.testCase['outputBufferLength'] = testResult.testCase.input.length*4
                     console.log('\x1b[31mA POSITIVE TEST CASE DISCOVERED:', JSON.stringify(testResult, null, 2), '\x1b[0m')
                     return testResult
                 }
@@ -302,7 +302,7 @@ async function genTestCase(messages){
 function tryTestCase(testCase){
 
     let ret = {
-        testCase: JSON.parse(JSON.stringify(testCase)),
+        // testCase: JSON.parse(JSON.stringify(testCase)),
         [ORACLE.name]: undefined,
         [HIEREUS.name]: undefined,
         status: 'format',
@@ -361,6 +361,8 @@ function tryTestCase(testCase){
             ret.status = 'positive'
         }
     }
+
+    ret['testCase'] = JSON.parse(JSON.stringify(testCase))
 
     return ret
 }

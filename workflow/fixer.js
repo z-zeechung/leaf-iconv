@@ -251,24 +251,9 @@ function addToTestCases(testCase){
 }
 
 fix({
-  "testCase": {
-    "input": "\ud800",
-    "encoding": "ibm-1123_P100-1995",
-    "outputBufferLength": 4
-  },
-  "icu": {
-    "result": [],
-    "log": {
-      "conversion": "",
-      "result": ""
-    }
-  },
-  "ziconv": {
-    "log": {
-      "compile": "",
-      "result": "The input string contains invalid characters.\n"
-    }
-  },
-  "status": "positive",
-  "message": ""
+  testCase: { input: '😀', replacement: [26], outputBufferLength: 20, encoding: 'iso-8859_11-2001' },
+  icu: { result: [ 26 ], log: { conversion: '', result: '\x1A' } },
+  ziconv: { result: [ 26, 26 ], log: { compile: '', result: '\x1A\x1A' } },
+  status: 'positive',
+  message: ''
 })

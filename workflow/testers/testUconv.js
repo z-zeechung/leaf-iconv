@@ -37,7 +37,7 @@ function test(payload){
             replacement = 'substitute'
         }
     }
-
+    
     const env = util.parseEnv(fs.readFileSync('.env', 'utf-8'))
 
     const uconv = env.uconv || 'uconv'
