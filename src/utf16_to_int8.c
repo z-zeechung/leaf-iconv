@@ -11,7 +11,27 @@
    headers. */
 static void _marco_definitions(){
 /* AIBLOCK marco */
+#define HAS_ZERO_BYTE(v) (((v) - 0x0101010101010101ULL) & ~(v) & 0x8080808080808080ULL)
+#define IS_VALID_SURROGATE_PAIR(high, low) \
+    (((high) >= 0xD800 && (high) <= 0xDBFF) && \
+     ((low) >= 0xDC00 && (low) <= 0xDFFF))
 
+// 错误处理宏
+#define HANDLE_INVALID(skip_count) \
+    do { \
+        if (replacement == NULL) { \
+            return ZICONV_ERR_INVALID; \
+        } else if (replacement[0] == '\0') { \
+            /* skip */ \
+        } else { \
+            if (*out_idx >= output_length) { \
+                return ZICONV_ERR_OVERFLOW; \
+            } \
+            output[(*out_idx)++] = replacement[0]; \
+        } \
+        i += (skip_count); \
+        continue; \
+    } while(0)
 /* ENDAIBLOCK */
 }
 
@@ -22,10 +42,10 @@ static inline uint8_t process_data(
     const char * restrict low_map   // level 2: map low byte to mb code, this is a continuous array, sth. like static linked list
 ){                                  // any invalid codepoints are mapped to 0x00, this enables determining invalid codepoints in batch
 /* AIBLOCK process */
-    // Optimized to use direct memory access with proper typing
-    // Use uint16_t for offset calculation to avoid potential sign extension
-    uint16_t high_offset = (uint8_t)high_map[input >> 8];
-    return low_map[(high_offset << 8) | (input & 0xFF)];
+    // Optimized memory access with direct offset calculation
+    // Cast to uint8_t first to avoid sign extension
+    uint16_t offset = ((uint8_t)high_map[input >> 8]) << 8;
+    return low_map[offset | (input & 0xFF)];
 /* ENDAIBLOCK */
 }
 
@@ -38,85 +58,125 @@ int64_t ziconv_utf16_to_int8_convert(
     const char * restrict high_map,
     const char * restrict low_map,
     size_t * restrict out_idx
-){
+){  
 /* AIBLOCK convert */
-    uint8_t* out_ptr = output + *out_idx;
-    const uint8_t* const end_ptr = output + output_length;
-    const uint8_t repl_char = replacement ? *replacement : 0;
-    int hasUnreplacedInvalid = 0;
+    *out_idx = 0;
     size_t i = 0;
-
-    // Fast path: process 4 chars at a time when possible
-    while (i + 3 < input_length) {
-        // Check for any surrogate chars in next 4 chars
-        uint32_t chunk = *(const uint32_t*)(input + i);
-        if ((chunk & 0xF800F800) != 0xD800D800) {
-            // Process 4 non-surrogate chars
-            uint8_t results[4];
-            results[0] = process_data(input[i], high_map, low_map);
-            results[1] = process_data(input[i+1], high_map, low_map);
-            results[2] = process_data(input[i+2], high_map, low_map);
-            results[3] = process_data(input[i+3], high_map, low_map);
-
-            // Check validity (0 is valid only for null char)
-            uint32_t valid_mask = 
-                ((input[i] == 0) | (results[0] != 0)) |
-                (((input[i+1] == 0) | (results[1] != 0)) << 8) |
-                (((input[i+2] == 0) | (results[2] != 0)) << 16) |
-                (((input[i+3] == 0) | (results[3] != 0)) << 24);
-
-            if (valid_mask == 0x01010101) {
-                if (out_ptr + 4 > end_ptr) {
-                    *out_idx = out_ptr - output;
-                    return ZICONV_ERR_OVERFLOW;
-                }
-                *(uint32_t*)out_ptr = *(uint32_t*)results;
-                out_ptr += 4;
-                i += 4;
-                continue;
+    
+    // 处理16字节块
+    for (; i + 15 < input_length; i += 16) {
+        uint8_t temp_output[16];
+        uint64_t packed1 = 0, packed2 = 0;
+        
+        // 预计算16个字符的映射
+        for (int j = 0; j < 16; j++) {  // 重要：不要修改这个循环体逻辑，也不要往里添加任何内容，这会使得编译器无法进行simd优化
+            temp_output[j] = process_data(input[i+j], high_map, low_map);
+        }
+        
+        // 检查前8字节和后8字节是否有0
+        memcpy(&packed1, temp_output, 8);
+        memcpy(&packed2, temp_output + 8, 8);
+        
+        // 使用位魔法检测0值（除了原始0x0000）
+        uint64_t zero_mask = ~0ULL;
+        for (int j = 0; j < 16; j++) {
+            if (input[i+j] == 0) {
+                // 原始0x0000不视为错误
+                zero_mask &= ~(1ULL << (j * 8));
             }
         }
-        break; // Fall back to slow path
+        
+        if ((HAS_ZERO_BYTE(packed1) || HAS_ZERO_BYTE(packed2)) && zero_mask) {
+            // 慢路径：使用位操作定位无效字符
+            for (int j = 0; j < 16; j++) {
+                uint16_t c = input[i+j];
+                
+                // 跳过原始0x0000
+                if (c == 0) continue;   // TODO
+                
+                // 检查代理对
+                if (c >= 0xD800 && c <= 0xDBFF) {
+                    // 高代理项
+                    if (j < 15) {
+                        uint16_t next = input[i+j+1];
+                        if (IS_VALID_SURROGATE_PAIR(c, next)) {
+                            // 有效代理对，但映射表无法处理
+                            HANDLE_INVALID(2);
+                        } else {
+                            // 无效高代理
+                            HANDLE_INVALID(1);
+                        }
+                    } else {
+                        // 块末尾的高代理
+                        HANDLE_INVALID(1);
+                    }
+                } else if (c >= 0xDC00 && c <= 0xDFFF) {
+                    // 孤立低代理
+                    HANDLE_INVALID(1);
+                } else if (temp_output[j] == 0) {
+                    // 非代理项的无效字符
+                    HANDLE_INVALID(1);
+                }
+                
+                // 有效字符
+                if (*out_idx >= output_length) {
+                    return ZICONV_ERR_OVERFLOW;
+                }
+                output[(*out_idx)++] = temp_output[j];
+            }
+            i += 16; // 处理完整个块
+        } else {
+            // 快路径：无无效字符，直接复制有效字符
+            for (int j = 0; j < 16; j++) {
+                if (input[i+j] != 0) { // 跳过原始0x0000
+                    if (*out_idx >= output_length) {
+                        return ZICONV_ERR_OVERFLOW;
+                    }
+                    output[(*out_idx)++] = temp_output[j];
+                }
+            }
+            i += 16;
+        }
     }
-
-    // Slow path for remaining chars
+    
+    // 处理剩余字符（基线路径）
     for (; i < input_length; i++) {
-        const uint16_t code = input[i];
-        uint8_t result = process_data(code, high_map, low_map);
+        uint16_t c = input[i];
         
-        // Non-surrogate case
-        if ((code & 0xF800) != 0xD800) {
-            if ((result != 0) || (code == 0)) {
-                if (out_ptr >= end_ptr) {
-                    *out_idx = out_ptr - output;
-                    return ZICONV_ERR_OVERFLOW;
+        // 跳过原始0x0000
+        if (c == 0) continue;   // TODO
+        
+        // 检查代理对
+        if (c >= 0xD800 && c <= 0xDBFF) {
+            // 高代理项
+            if (i + 1 < input_length) {
+                uint16_t next = input[i+1];
+                if (IS_VALID_SURROGATE_PAIR(c, next)) {
+                    HANDLE_INVALID(2);
+                } else {
+                    HANDLE_INVALID(1);
                 }
-                *out_ptr++ = result;
-                continue;
+            } else {
+                HANDLE_INVALID(1);
             }
-            goto handle_invalid;
+        } else if (c >= 0xDC00 && c <= 0xDFFF) {
+            // 孤立低代理
+            HANDLE_INVALID(1);
         }
         
-        // Surrogate case
-        if ((code & 0xFC00) == 0xD800) { // High surrogate
-            if (i + 1 < input_length && (input[i+1] & 0xFC00) == 0xDC00) {
-                i++; // Skip low surrogate
-            }
+        // 处理有效字符
+        uint8_t mapped = process_data(c, high_map, low_map);
+        if (mapped == 0) {
+            // 非代理项的无效字符
+            HANDLE_INVALID(1);
         }
-
-    handle_invalid:
-        if (repl_char != 0) {
-            if (out_ptr >= end_ptr) {
-                *out_idx = out_ptr - output;
-                return ZICONV_ERR_OVERFLOW;
-            }
-            *out_ptr++ = repl_char;
-        } else if (replacement == NULL) {
-            hasUnreplacedInvalid = 1;
+        
+        if (*out_idx >= output_length) {
+            return ZICONV_ERR_OVERFLOW;
         }
+        output[(*out_idx)++] = mapped;
     }
-
-    *out_idx = out_ptr - output;
-    return hasUnreplacedInvalid ? ZICONV_ERR_INVALID : ZICONV_OK;
+    
+    return 0;
 /* ENDAIBLOCK */
 }

@@ -2,7 +2,7 @@
 const fs = require('fs')
 const {isArray} = require('util')
 
-const MAX_TRAILS = 32
+const MAX_TRAILS = 128
 const CODES = ['ziconv.h', 'src/utf16_to_int8.c']
 const FILE = './src/utf16_to_int8.c'
 const ORACLE = {name: 'icu', tester: require('./testers/testUconv.js')}
