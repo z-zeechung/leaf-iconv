@@ -61,7 +61,7 @@ function test(){
             clock_t end = clock();
 
             double elapsed_ms = (double)(end - start) * 1000 / CLOCKS_PER_SEC;
-            int mb_per_sec = out_idx / (1024 * 1024) / (elapsed_ms / 1000);
+            int mb_per_sec = i / (1024 * 1024) / (elapsed_ms / 1000);
             printf("%d", mb_per_sec);
 
             return 0;
@@ -91,7 +91,8 @@ function test(){
                 "test/test.c",
                 "-I.",
                 "-o",
-                "test/test"
+                "test/test",
+                "-O3"
             ], 
             {encoding: 'ascii'}
         )

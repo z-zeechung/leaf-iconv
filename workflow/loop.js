@@ -1,9 +1,16 @@
 
 const attack = require('./attaker.js')
 const fix = require('./fixer.js')
+const optimize = require('./optimizer.js')
 ;
 (async ()=>{
     while(true){
-        await fix(await attack())   
+        try{
+            while(true){
+                await fix(await attack())
+            }
+        }catch(e){
+            await optimize()
+        }
     }
 })()

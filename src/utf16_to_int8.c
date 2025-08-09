@@ -20,12 +20,12 @@ static inline uint8_t process_data(
     uint16_t input, 
     const char * restrict high_map, // level 1: map high byte to offset
     const char * restrict low_map   // level 2: map low byte to mb code, this is a continuous array, sth. like static linked list
-){                                  // this allow us to store mapping with less space
+){                                  // any invalid codepoints are mapped to 0x00, this enables determining invalid codepoints in batch
 /* AIBLOCK process */
-    uint8_t high = high_map[input >> 8];
-    input = 0x00ff & input;
-    input = input | (high << 8);
-    return low_map[input];
+    // Optimized to use direct memory access with proper typing
+    // Use uint16_t for offset calculation to avoid potential sign extension
+    uint16_t high_offset = (uint8_t)high_map[input >> 8];
+    return low_map[(high_offset << 8) | (input & 0xFF)];
 /* ENDAIBLOCK */
 }
 
@@ -40,65 +40,83 @@ int64_t ziconv_utf16_to_int8_convert(
     size_t * restrict out_idx
 ){
 /* AIBLOCK convert */
-    size_t i = 0;
+    uint8_t* out_ptr = output + *out_idx;
+    const uint8_t* const end_ptr = output + output_length;
+    const uint8_t repl_char = replacement ? *replacement : 0;
     int hasUnreplacedInvalid = 0;
-    
-    while (i < input_length) {
-        uint16_t code = input[i];
-        int isInvalid = 0;
-        int consumed = 1;
-        uint32_t full_code = code;
-        int isSurrogate = (code >= 0xD800 && code <= 0xDFFF);
-        int isSurrogatePair = 0;
+    size_t i = 0;
 
-        // Handle surrogate characters
-        if (isSurrogate) {
-            if (code <= 0xDBFF && i+1 < input_length) {
-                uint16_t next = input[i+1];
-                if (next >= 0xDC00 && next <= 0xDFFF) {
-                    full_code = 0x10000 + ((code - 0xD800) << 10) + (next - 0xDC00);
-                    consumed = 2;
-                    isSurrogatePair = 1;
+    // Fast path: process 4 chars at a time when possible
+    while (i + 3 < input_length) {
+        // Check for any surrogate chars in next 4 chars
+        uint32_t chunk = *(const uint32_t*)(input + i);
+        if ((chunk & 0xF800F800) != 0xD800D800) {
+            // Process 4 non-surrogate chars
+            uint8_t results[4];
+            results[0] = process_data(input[i], high_map, low_map);
+            results[1] = process_data(input[i+1], high_map, low_map);
+            results[2] = process_data(input[i+2], high_map, low_map);
+            results[3] = process_data(input[i+3], high_map, low_map);
+
+            // Check validity (0 is valid only for null char)
+            uint32_t valid_mask = 
+                ((input[i] == 0) | (results[0] != 0)) |
+                (((input[i+1] == 0) | (results[1] != 0)) << 8) |
+                (((input[i+2] == 0) | (results[2] != 0)) << 16) |
+                (((input[i+3] == 0) | (results[3] != 0)) << 24);
+
+            if (valid_mask == 0x01010101) {
+                if (out_ptr + 4 > end_ptr) {
+                    *out_idx = out_ptr - output;
+                    return ZICONV_ERR_OVERFLOW;
                 }
+                *(uint32_t*)out_ptr = *(uint32_t*)results;
+                out_ptr += 4;
+                i += 4;
+                continue;
             }
-            // All surrogates are invalid in target encoding
-            isInvalid = 1;
+        }
+        break; // Fall back to slow path
+    }
+
+    // Slow path for remaining chars
+    for (; i < input_length; i++) {
+        const uint16_t code = input[i];
+        uint8_t result = process_data(code, high_map, low_map);
+        
+        // Non-surrogate case
+        if ((code & 0xF800) != 0xD800) {
+            if ((result != 0) || (code == 0)) {
+                if (out_ptr >= end_ptr) {
+                    *out_idx = out_ptr - output;
+                    return ZICONV_ERR_OVERFLOW;
+                }
+                *out_ptr++ = result;
+                continue;
+            }
+            goto handle_invalid;
+        }
+        
+        // Surrogate case
+        if ((code & 0xFC00) == 0xD800) { // High surrogate
+            if (i + 1 < input_length && (input[i+1] & 0xFC00) == 0xDC00) {
+                i++; // Skip low surrogate
+            }
         }
 
-        // Process character
-        uint8_t result = process_data(full_code, high_map, low_map);
-        if (result == 0 && full_code != 0) {
-            isInvalid = 1;
-        } else if (!isSurrogate) { // Only output for non-surrogate characters
-            if ((*out_idx) < output_length) {
-                output[(*out_idx)++] = result;
-            } else {
+    handle_invalid:
+        if (repl_char != 0) {
+            if (out_ptr >= end_ptr) {
+                *out_idx = out_ptr - output;
                 return ZICONV_ERR_OVERFLOW;
             }
+            *out_ptr++ = repl_char;
+        } else if (replacement == NULL) {
+            hasUnreplacedInvalid = 1;
         }
-
-        // Handle invalid characters according to ICU behavior
-        if (isInvalid) {
-            if (replacement != NULL) {
-                if (replacement[0] != 0 && (*out_idx) < output_length) {
-                    output[(*out_idx)++] = replacement[0];
-                }
-            } else {
-                // Only report error for surrogate pairs and non-surrogate invalid chars
-                // Single surrogates are silently skipped (ICU behavior)
-                if (isSurrogatePair || !isSurrogate) {
-                    hasUnreplacedInvalid = 1;
-                }
-            }
-        }
-
-        i += consumed;
     }
-    
-    if (hasUnreplacedInvalid) {
-        *out_idx = 0; // Clear output on error (ICU behavior)
-        return ZICONV_ERR_INVALID;
-    }
-    return ZICONV_OK;
+
+    *out_idx = out_ptr - output;
+    return hasUnreplacedInvalid ? ZICONV_ERR_INVALID : ZICONV_OK;
 /* ENDAIBLOCK */
 }

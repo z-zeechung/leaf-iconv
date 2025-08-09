@@ -2,19 +2,29 @@
 const fs = require('fs')
 const {isArray} = require('util')
 
-const MAX_TRAILS = 10
+const MAX_TRAILS = 32
 const CODES = ['ziconv.h', 'src/utf16_to_int8.c']
+const FILE = './src/utf16_to_int8.c'
+const ORACLE = {name: 'icu', tester: require('./testers/testUconv.js')}
+const HIEREUS = {name: 'ziconv', tester: require('./testers/testUtf16ToInt8.js')}
+const DATAFILE = 'workflow/data/testUtf16ToInt8.json'
+
+const replacer = (key, value) => {
+  // 显式保留 null 和 undefined 值
+  return value === undefined ? null : value;
+}
 
 async function optimize(){
 
     let bestResult = (require('./testers/testUtf16ToInt8Speed.js'))()
-    console.log('Current best Mbs/s:', bestResult)
+    console.log('Current best MB/s:', bestResult)
     
     let history = []
 
     let system = {role: 'user', content: GENERAL_PROMPT(bestResult)}
-
-    for(let i=0;i < MAX_TRAILS;i++){
+    
+    let i=0
+    for(;i < MAX_TRAILS;i++){
         let analyze = await reasoning([system, ...history])
         history.push({role: 'assistant', content: analyze})
         history.push({role: 'user', content: OPTIMIZE_PROMPT})
@@ -28,16 +38,20 @@ async function optimize(){
             let newResult = (require('./testers/testUtf16ToInt8Speed.js'))()
             if(newResult > bestResult){
                 bestResult = newResult
-                console.log('New best Mbs/s:', bestResult)
-                history.push({role: 'user', content: `新纪录：${newResult} Mbs/s`})
+                console.log('New best MB/s:', bestResult)
+                history.push({role: 'user', content: `新纪录：${newResult} MB/s`})
+                return
             }else{
                 console.log('New result:', newResult, 'is not faster than best result:', bestResult)
                 history.push({role: 'user', content: NOT_FASTER_PROMPT(newResult, bestResult)})
+                fs.writeFileSync(FILE, validateResult.originalCode, 'utf-8')
             }
         }else{
             history.push({role: 'user', content: NEGATIVE_PROMPT(validateResult)})
         }
     }
+
+    throw new Error('Optimizer failed to find a better solution')
 }
 
 const GENERAL_PROMPT = (mbPerS)=>`
@@ -61,7 +75,9 @@ ${getCodes()}
 \`\`\`
 
 这段代码当前的吞吐量为${mbPerS}MB每秒，你的优化实现需要比这更快。
-你不必现在就基于编码，你可以先对代码进行分析来确认该如何做优化。
+你不必现在就急于编码，你可以先对代码进行分析来确认该如何做优化。
+
+建议每次只对特定某个点进行优化，以提高代码修改的成功率。
 `
 
 const OPTIMIZE_PROMPT = `
@@ -217,9 +233,27 @@ function validateFixedSegs(fixedSegs){
         }
     }
 
+    ret['originalCode'] = originalCode
+
     return ret
+}
+
+function matchCode(code){
+    const regex = /AIBLOCK ([A-Za-z0-9]+)[\S\s]*?ENDAIBLOCK/g;
+    const regex2 = /AIBLOCK ([A-Za-z0-9]+)[\S\s]*?ENDAIBLOCK/;
+    const matches = code.match(regex);
+    let segs = {}
+    if(matches){
+        for(let match of matches){
+            let name = regex2.exec(match)[1]
+            let code = match.split('\n').slice(1, -1).join('\n')
+            segs[name] = code
+        }
+    }
+    return segs
 }
 
 
 
-optimize()
+// optimize()
+module.exports = optimize
