@@ -2,7 +2,7 @@
 const fs = require('fs')
 const { isArray } = require('util')
 
-const MAX_TRAILS = 10
+const MAX_TRAILS = 1
 const CHARSETS = '欧洲语言'
 const ENCODINGS = ['wctomb', 'utf16ToInt8']
 const ORACLE = {name: 'icu', tester: require('./testers/testUconv.js')}
@@ -367,4 +367,6 @@ function tryTestCase(testCase){
     return ret
 }
 
-attack()
+// attack()
+
+module.exports = attack

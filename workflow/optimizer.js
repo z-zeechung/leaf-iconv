@@ -1,91 +1,71 @@
 
 const fs = require('fs')
-const { isArray } = require('util')
+const {isArray} = require('util')
 
-const MAX_TRAILS = 3
-const ORACLE = {name: 'icu', tester: require('./testers/testUconv.js')}
-const HIEREUS = {name: 'ziconv', tester: require('./testers/testUtf16ToInt8.js')}
+const MAX_TRAILS = 10
 const CODES = ['ziconv.h', 'src/utf16_to_int8.c']
-const FILE = './src/utf16_to_int8.c'
-const DATAFILE = 'workflow/data/testUtf16ToInt8.json'
 
-const replacer = (key, value) => {
-  // 显式保留 null 和 undefined 值
-  return value === undefined ? null : value;
-}
+async function optimize(){
 
-async function fix(testResult){
-
+    let bestResult = (require('./testers/testUtf16ToInt8Speed.js'))()
+    console.log('Current best Mbs/s:', bestResult)
+    
     let history = []
 
-    let system = {role: 'user', content: GENERAL_PROMPT(testResult)}
+    let system = {role: 'user', content: GENERAL_PROMPT(bestResult)}
 
     for(let i=0;i < MAX_TRAILS;i++){
-
-        // if(i%3==0){
         let analyze = await reasoning([system, ...history])
         history.push({role: 'assistant', content: analyze})
-        history.push({role: 'user', content: FIX_PROMPT})
-        // }
+        history.push({role: 'user', content: OPTIMIZE_PROMPT})
 
-        let fixedSegs = await genFixedCode([system, ...history])
-        history.push({role: 'assistant', content: fixedSegs})
+        let optimizedSegs = await genOptimizedCode([system, ...history])
 
-        let validateResult = validateFixedSegs(fixedSegs, testResult.testCase)
+        let validateResult = validateFixedSegs(optimizedSegs)
         console.log(validateResult)
 
         if(validateResult.success){
-            addToTestCases(testResult.testCase)
-            return
-        }
-
-        history.push({role: 'user', content: NEGATIVE_PROMPT(validateResult)})
-
-        if(history.length > 24){
-            history = history.slice(-16)
+            let newResult = (require('./testers/testUtf16ToInt8Speed.js'))()
+            if(newResult > bestResult){
+                bestResult = newResult
+                console.log('New best Mbs/s:', bestResult)
+                history.push({role: 'user', content: `新纪录：${newResult} Mbs/s`})
+            }else{
+                console.log('New result:', newResult, 'is not faster than best result:', bestResult)
+                history.push({role: 'user', content: NOT_FASTER_PROMPT(newResult, bestResult)})
+            }
+        }else{
+            history.push({role: 'user', content: NEGATIVE_PROMPT(validateResult)})
         }
     }
-
-    throw new Error('failed to fix with this test case: ' + JSON.stringify(testCase, replacer, 4))
 }
 
-
-const GENERAL_PROMPT = (testResult)=>`
-
+const GENERAL_PROMPT = (mbPerS)=>`
 /*
 限制：
     - 只能修改AIBLOCK区间内的代码，其它代码无权修改。AIBLOCK外
     的代码已经过详细核验，确认无任何问题
-    - 专注于当前测试用例的修复
     - 修改后的代码应当能通过回归测试
-    - 不能引入新的头文件
+    - 不能引入新的头文件，当然因此也不能使用SIMD指令，不过你仍
+    然可以使用SWAR或位魔法等技巧来诱导编译器进行SIMD展开。
     - Use English comments in output C code
 */
 
-你是一个拥有十年经验的老C程序员，熟悉C语言的各种特性，擅长解决
-疑难杂症。以下是你同事刚刚给你发来的测试用例，这个测试用例在我
-们的实现上与神谕测试表现不一致。以下是测试用例的内容及运行结果：
-\`\`\` json
-// ${ORACLE.name}为神谕实现，${HIEREUS.name}为我们的实现
-// testCase为输入的测试用例
-${JSON.stringify(testResult, replacer)}
-\`\`\`
+你是一个拥有丰富经验的C语言性能优化程序员，现在正在优化一段C语
+言字符转换代码。请你尽可能地提高其性能。修复后的代码仍应能够通
+过回归测试。
 
-我们预期的合法运行结果有两种：
-- 测试用例同时在${ORACLE.name}和${HIEREUS.name}上失败（失败时不返回结果）
-- 测试用例在${ORACLE.name}和${HIEREUS.name}上转换结果完全一致
-
-请基于实际代码，分析为何会出现这种错误：
-\`\`\` c
+以下是代码实现：
+\`\`\`c
 ${getCodes()}
 \`\`\`
 
-尝试阐述如何修改以解决这个问题。
+这段代码当前的吞吐量为${mbPerS}MB每秒，你的优化实现需要比这更快。
+你不必现在就基于编码，你可以先对代码进行分析来确认该如何做优化。
 `
 
-const FIX_PROMPT = `
-既然你已经对错误产生的原因有了了解，并且已经有了大致的修改方案，
-现在请对代码进行修改以排除错误。
+const OPTIMIZE_PROMPT = `
+既然你已经大概有了性能优化的思路，那么开始动手实施吧。
 
 注意到那些由\`/* AIBLOCK ... */ ... /* ENDAIBLOCK */\`包围的代
 码块了吗？你的修改范围被限制在这些代码块区域内。例如，假如你想
@@ -100,6 +80,11 @@ const FIX_PROMPT = `
 输出更新代码。
 
 请注意，在输出的代码块中省略既有代码是不支持的。
+`
+
+const NOT_FASTER_PROMPT = (newResult, bestResult)=>`
+先前代码性能为${bestResult}MB/s，现在代码性能为${newResult}MB/s。
+优化后的代码并未在吞吐量上取得提升，再试一试吧
 `
 
 const NEGATIVE_PROMPT = (result) => `
@@ -152,7 +137,7 @@ async function reasoning(messages){
     return stack
 }
 
-async function genFixedCode(messages){
+async function genOptimizedCode(messages){
     const stream = await openai.chat.completions.create({
       model: env.MODEL, 
       messages,
@@ -172,7 +157,7 @@ async function genFixedCode(messages){
     return stack
 }
 
-function validateFixedSegs(fixedSegs, testCase){
+function validateFixedSegs(fixedSegs){
     let originalCode = fs.readFileSync(FILE, 'utf-8')
     let originalBlocks = matchCode(originalCode)
     let fixedBlocks = matchCode(fixedSegs)
@@ -193,11 +178,11 @@ function validateFixedSegs(fixedSegs, testCase){
     }
     fs.writeFileSync(FILE, fixedCode)
 
-    let ret = {testCase, success: true}
-    let result1 = ORACLE.tester(testCase)
-    let result2 = HIEREUS.tester(testCase)
-    ret[ORACLE.name] = result1
-    ret[HIEREUS.name] = result2
+    let ret = {/*testCase,*/ success: true}
+    // let result1 = ORACLE.tester(testCase)
+    // let result2 = HIEREUS.tester(testCase)
+    // ret[ORACLE.name] = result1
+    // ret[HIEREUS.name] = result2
     function arrcmp(arr1, arr2){
         if(!arr1 && !arr2) return true
         if(!arr1 && arr2) return false
@@ -208,11 +193,11 @@ function validateFixedSegs(fixedSegs, testCase){
         }
         return true
     }
-    if(arrcmp(result1.result, result2.result)){ 
-    }else{
-        ret.success = false
-        fs.writeFileSync(FILE, originalCode, 'utf-8')
-    }
+    // if(arrcmp(result1.result, result2.result)){ 
+    // }else{
+    //     ret.success = false
+    //     fs.writeFileSync(FILE, originalCode, 'utf-8')
+    // }
 
     // regression test
     let json = JSON.parse(fs.readFileSync(DATAFILE, 'utf-8'))
@@ -235,54 +220,6 @@ function validateFixedSegs(fixedSegs, testCase){
     return ret
 }
 
-function matchCode(code){
-    const regex = /AIBLOCK ([A-Za-z0-9]+)[\S\s]*?ENDAIBLOCK/g;
-    const regex2 = /AIBLOCK ([A-Za-z0-9]+)[\S\s]*?ENDAIBLOCK/;
-    const matches = code.match(regex);
-    let segs = {}
-    if(matches){
-        for(let match of matches){
-            let name = regex2.exec(match)[1]
-            let code = match.split('\n').slice(1, -1).join('\n')
-            segs[name] = code
-        }
-    }
-    return segs
-}
 
-function addToTestCases(testCase){
-    let json = JSON.parse(fs.readFileSync(DATAFILE, 'utf-8'))
-    json.testCase.push(testCase)
-    fs.writeFileSync(DATAFILE, JSON.stringify(json, null, 2))
-}
 
-module.exports = fix
-
-// fix({
-//   "icu": {
-//     "result": [
-//       26
-//     ],
-//     "log": {
-//       "conversion": "",
-//       "result": "\u001a"
-//     }
-//   },
-//   "ziconv": {
-//     "result": [],
-//     "log": {
-//       "compile": "",
-//       "result": ""
-//     }
-//   },
-//   "status": "positive",
-//   "message": "",
-//   "testCase": {
-//     "input": "\ud800",
-//     "replacement": [
-//       26
-//     ],
-//     "encoding": "iso-8859_11-2001",
-//     "outputBufferLength": 4
-//   }
-// })
+optimize()

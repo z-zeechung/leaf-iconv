@@ -41,51 +41,63 @@ int64_t ziconv_utf16_to_int8_convert(
 ){
 /* AIBLOCK convert */
     size_t i = 0;
+    int hasUnreplacedInvalid = 0;
+    
     while (i < input_length) {
         uint16_t code = input[i];
+        int isInvalid = 0;
+        int consumed = 1;
+        uint32_t full_code = code;
+        int isSurrogate = (code >= 0xD800 && code <= 0xDFFF);
+        int isSurrogatePair = 0;
 
-        // Check for surrogate pairs
-        if (code >= 0xD800 && code <= 0xDBFF) {
-            // High surrogate found, check if next is low surrogate
-            if (i+1 < input_length && input[i+1] >= 0xDC00 && input[i+1] <= 0xDFFF) {
-                // Valid surrogate pair - treat as single invalid character
-                if (replacement != NULL) {
-                    size_t repl_len = strlen((char*)replacement);
-                    if ((*out_idx) + repl_len > output_length) {
-                        return ZICONV_ERR_OVERFLOW;
-                    }
-                    memcpy(output + (*out_idx), replacement, repl_len);
-                    (*out_idx) += repl_len;
+        // Handle surrogate characters
+        if (isSurrogate) {
+            if (code <= 0xDBFF && i+1 < input_length) {
+                uint16_t next = input[i+1];
+                if (next >= 0xDC00 && next <= 0xDFFF) {
+                    full_code = 0x10000 + ((code - 0xD800) << 10) + (next - 0xDC00);
+                    consumed = 2;
+                    isSurrogatePair = 1;
                 }
-                i += 2; // Skip both high and low surrogates
-                continue;
             }
-            // Fall through to invalid handling for unpaired high surrogate
-        } else if (code >= 0xDC00 && code <= 0xDFFF) {
-            // Unpaired low surrogate - fall through to invalid handling
+            // All surrogates are invalid in target encoding
+            isInvalid = 1;
         }
 
-        // Normal character processing
-        uint8_t result = process_data(code, high_map, low_map);
-        if (result != 0 || code == 0) {
-            if ((*out_idx) >= output_length) {
+        // Process character
+        uint8_t result = process_data(full_code, high_map, low_map);
+        if (result == 0 && full_code != 0) {
+            isInvalid = 1;
+        } else if (!isSurrogate) { // Only output for non-surrogate characters
+            if ((*out_idx) < output_length) {
+                output[(*out_idx)++] = result;
+            } else {
                 return ZICONV_ERR_OVERFLOW;
             }
-            output[(*out_idx)++] = result;
-            i++;
-            continue;
         }
 
-        // Invalid character handling
-        if (replacement != NULL) {
-            size_t repl_len = strlen((char*)replacement);
-            if ((*out_idx) + repl_len > output_length) {
-                return ZICONV_ERR_OVERFLOW;
+        // Handle invalid characters according to ICU behavior
+        if (isInvalid) {
+            if (replacement != NULL) {
+                if (replacement[0] != 0 && (*out_idx) < output_length) {
+                    output[(*out_idx)++] = replacement[0];
+                }
+            } else {
+                // Only report error for surrogate pairs and non-surrogate invalid chars
+                // Single surrogates are silently skipped (ICU behavior)
+                if (isSurrogatePair || !isSurrogate) {
+                    hasUnreplacedInvalid = 1;
+                }
             }
-            memcpy(output + (*out_idx), replacement, repl_len);
-            (*out_idx) += repl_len;
         }
-        i++;
+
+        i += consumed;
+    }
+    
+    if (hasUnreplacedInvalid) {
+        *out_idx = 0; // Clear output on error (ICU behavior)
+        return ZICONV_ERR_INVALID;
     }
     return ZICONV_OK;
 /* ENDAIBLOCK */

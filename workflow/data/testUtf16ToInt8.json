@@ -24,6 +24,24 @@
       ],
       "outputBufferLength": 20,
       "encoding": "iso-8859_11-2001"
+    },
+    {
+      "input": "Ā",
+      "encoding": "ibm-37_P100-1995",
+      "outputBufferLength": 4
+    },
+    {
+      "input": "\ud800",
+      "replacement": [
+        26
+      ],
+      "encoding": "iso-8859_11-2001",
+      "outputBufferLength": 4
+    },
+    {
+      "input": "𐀀",
+      "encoding": "ibm-37_P100-1995",
+      "outputBufferLength": 8
     }
   ],
   "anchor": [
