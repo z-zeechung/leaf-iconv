@@ -1,0 +1,6 @@
+{
+    "scripts": {
+        "gen": "npm run gen:meta",
+        "gen:meta": "node scripts/parseUcm/parseAllUcms.js"
+    }
+}
