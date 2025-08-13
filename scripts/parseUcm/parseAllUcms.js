@@ -12,11 +12,7 @@ function parseAllUcms () {
         if(!name.endsWith('.ucm')) continue
         const data = fs.readFileSync('mappings/'+name, 'utf-8')
         const {meta, mapping} = parseFormatted(formatParser(data))
-        if(meta.base || meta.state) {
-
-        }else {
-            meta.mapping = mapping
-        }
+        meta.mapping = mapping
         fs.writeFileSync(`metadata/${meta.name}.json`, JSON.stringify(meta, null, 4))
     }
 }

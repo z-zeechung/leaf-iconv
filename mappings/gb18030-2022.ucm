@@ -31,7 +31,7 @@
 # the natural path for the encoding scheme.
 # ICU-22420 makes 0x80 valid for the GBK encoding of the Euro sign.
 <icu:state> 0-80, 81:6, 82:7, 83:8, 84:9, 85-fe:3
-# <icu:state> 30-39:2, 40-7e, 80-fe
+# <> 30-39:2, 40-7e, 80-fe
 <icu:state> 81-fe:2
 <icu:state> 30-39
 

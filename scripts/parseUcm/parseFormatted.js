@@ -53,19 +53,19 @@ function parseFormatted (arr) {
             let {wc, mb, kind: type} = seg
             switch(type){
                 case 0:
-                    mapping[0][wc.toString(16).padStart(4, '0').toUpperCase()] = mb
+                    mapping[0][wc.toString(16).padStart(5, '0').toUpperCase()] = mb
                     break
                 case 1:
-                    mapping[1][wc.toString(16).padStart(4, '0').toUpperCase()] = mb
+                    mapping[1][wc.toString(16).padStart(5, '0').toUpperCase()] = mb
                     break
                 case 2:
-                    mapping[2][wc.toString(16).padStart(4, '0').toUpperCase()] = mb
+                    mapping[2][wc.toString(16).padStart(5, '0').toUpperCase()] = mb
                     break
                 case 3:
-                    mapping[3][wc.toString(16).padStart(4, '0').toUpperCase()] = mb
+                    mapping[3][wc.toString(16).padStart(5, '0').toUpperCase()] = mb
                     break
                 case 4:
-                    mapping[4][wc.toString(16).padStart(4, '0').toUpperCase()] = mb
+                    mapping[4][wc.toString(16).padStart(5, '0').toUpperCase()] = mb
                     break
                 default:
                     throw new Error('Unknown char type: ' + type + ' in encoding ucm '+meta.name)
