@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE characterMapping SYSTEM "http://www.unicode.org/unicode/reports/tr22/CharacterMapping.dtd">
+<characterMapping id="windows-1258_db-2013" version="1">
+ <history>
+  <modified version="1" date="2025-08-13">This file was generated with Ucm2Xml.java.</modified>
+ </history>
+ <validity>
+  <state type="FIRST" next="VALID" s="1A" max="FFFF"/>
+  <state type="FIRST" next="SECOND" s="41"/>
+  <state type="FIRST" next="SECOND" s="45"/>
+  <state type="FIRST" next="SECOND" s="49"/>
+  <state type="FIRST" next="SECOND" s="4F"/>
+  <state type="FIRST" next="SECOND" s="55"/>
+  <state type="FIRST" next="SECOND" s="59"/>
+  <state type="FIRST" next="SECOND" s="61"/>
+  <state type="FIRST" next="SECOND" s="65"/>
+  <state type="FIRST" next="SECOND" s="69"/>
+  <state type="FIRST" next="SECOND" s="6F"/>
+  <state type="FIRST" next="SECOND" s="75"/>
+  <state type="FIRST" next="SECOND" s="79"/>
+  <state type="FIRST" next="SECOND" s="C2" e="C3"/>
+  <state type="FIRST" next="SECOND" s="CA"/>
+  <state type="FIRST" next="SECOND" s="D4" e="D5"/>
+  <state type="FIRST" next="SECOND" s="DD"/>
+  <state type="FIRST" next="SECOND" s="E2" e="E3"/>
+  <state type="FIRST" next="SECOND" s="EA"/>
+  <state type="FIRST" next="SECOND" s="F4" e="F5"/>
+  <state type="FIRST" next="SECOND" s="FD" e="FE"/>
+  <state type="SECOND" next="VALID" s="00" e="FF" max="FFFF"/>
+ </validity>
+ <assignments sub="FE FE">
+  <!-- One to one mappings -->
+  <a u="00C3" b="41 DE"/>
+  <a u="00CC" b="49 CC"/>
+  <a u="00D2" b="4F CC"/>
+  <a u="00D5" b="4F DE"/>
+  <a u="00E3" b="61 DE"/>
+  <a u="00EC" b="69 CC"/>
+  <a u="00F2" b="6F CC"/>
+  <a u="00F5" b="6F DE"/>
+  <a u="0128" b="49 DE"/>
+  <a u="0129" b="69 DE"/>
+  <a u="0168" b="55 DE"/>
+  <a u="0169" b="75 DE"/>
+  <a u="1EA0" b="41 F2"/>
+  <a u="1EA1" b="61 F2"/>
+  <a u="1EA2" b="41 D2"/>
+  <a u="1EA3" b="61 D2"/>
+  <a u="1EA4" b="C2 EC"/>
+  <a u="1EA5" b="E2 EC"/>
+  <a u="1EA6" b="C2 CC"/>
+  <a u="1EA7" b="E2 CC"/>
+  <a u="1EA8" b="C2 D2"/>
+  <a u="1EA9" b="E2 D2"/>
+  <a u="1EAA" b="C2 DE"/>
+  <a u="1EAB" b="E2 DE"/>
+  <a u="1EAC" b="C2 F2"/>
+  <a u="1EAD" b="E2 F2"/>
+  <a u="1EAE" b="C3 EC"/>
+  <a u="1EAF" b="E3 EC"/>
+  <a u="1EB0" b="C3 CC"/>
+  <a u="1EB1" b="E3 CC"/>
+  <a u="1EB2" b="C3 D2"/>
+  <a u="1EB3" b="E3 D2"/>
+  <a u="1EB4" b="C3 DE"/>
+  <a u="1EB5" b="E3 DE"/>
+  <a u="1EB6" b="C3 F2"/>
+  <a u="1EB7" b="E3 F2"/>
+  <a u="1EB8" b="45 F2"/>
+  <a u="1EB9" b="65 F2"/>
+  <a u="1EBA" b="45 D2"/>
+  <a u="1EBB" b="65 D2"/>
+  <a u="1EBC" b="45 DE"/>
+  <a u="1EBD" b="65 DE"/>
+  <a u="1EBE" b="CA EC"/>
+  <a u="1EBF" b="EA EC"/>
+  <a u="1EC0" b="CA CC"/>
+  <a u="1EC1" b="EA CC"/>
+  <a u="1EC2" b="CA D2"/>
+  <a u="1EC3" b="EA D2"/>
+  <a u="1EC4" b="CA DE"/>
+  <a u="1EC5" b="EA DE"/>
+  <a u="1EC6" b="CA F2"/>
+  <a u="1EC7" b="EA F2"/>
+  <a u="1EC8" b="49 D2"/>
+  <a u="1EC9" b="69 D2"/>
+  <a u="1ECA" b="49 F2"/>
+  <a u="1ECB" b="69 F2"/>
+  <a u="1ECC" b="4F F2"/>
+  <a u="1ECD" b="6F F2"/>
+  <a u="1ECE" b="4F D2"/>
+  <a u="1ECF" b="6F D2"/>
+  <a u="1ED0" b="D4 EC"/>
+  <a u="1ED1" b="F4 EC"/>
+  <a u="1ED2" b="D4 CC"/>
+  <a u="1ED3" b="F4 CC"/>
+  <a u="1ED4" b="D4 D2"/>
+  <a u="1ED5" b="F4 D2"/>
+  <a u="1ED6" b="D4 DE"/>
+  <a u="1ED7" b="F4 DE"/>
+  <a u="1ED8" b="D4 F2"/>
+  <a u="1ED9" b="F4 F2"/>
+  <a u="1EDA" b="D5 EC"/>
+  <a u="1EDB" b="F5 EC"/>
+  <a u="1EDC" b="D5 CC"/>
+  <a u="1EDD" b="F5 CC"/>
+  <a u="1EDE" b="D5 D2"/>
+  <a u="1EDF" b="F5 D2"/>
+  <a u="1EE0" b="D5 DE"/>
+  <a u="1EE1" b="F5 DE"/>
+  <a u="1EE2" b="D5 F2"/>
+  <a u="1EE3" b="F5 F2"/>
+  <a u="1EE4" b="55 F2"/>
+  <a u="1EE5" b="75 F2"/>
+  <a u="1EE6" b="55 D2"/>
+  <a u="1EE7" b="75 D2"/>
+  <a u="1EE8" b="DD EC"/>
+  <a u="1EE9" b="FD EC"/>
+  <a u="1EEA" b="DD CC"/>
+  <a u="1EEB" b="FD CC"/>
+  <a u="1EEC" b="DD D2"/>
+  <a u="1EED" b="FD D2"/>
+  <a u="1EEE" b="DD DE"/>
+  <a u="1EEF" b="FD DE"/>
+  <a u="1EF0" b="DD F2"/>
+  <a u="1EF1" b="FD F2"/>
+  <a u="1EF2" b="59 CC"/>
+  <a u="1EF3" b="79 CC"/>
+  <a u="1EF4" b="59 F2"/>
+  <a u="1EF5" b="79 F2"/>
+  <a u="1EF6" b="59 D2"/>
+  <a u="1EF7" b="79 D2"/>
+  <a u="1EF8" b="59 DE"/>
+  <a u="1EF9" b="79 DE"/>
+  <!-- Fallback mappings from Unicode to bytes -->
+  <!-- NONE -->
+  <!-- Fallback mappings from bytes to Unicode -->
+  <!-- NONE -->
+ </assignments>
+</characterMapping>

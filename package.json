@@ -1,6 +1,6 @@
 {
-    "scripts": {
-        "gen": "npm run gen:meta",
-        "gen:meta": "node scripts/parseUcm/parseAllUcms.js"
-    }
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "xml2js": "^0.6.2"
+  }
 }
